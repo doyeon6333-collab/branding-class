@@ -1136,15 +1136,17 @@ function makeExportSync(){
   return { dataUrl: dataUrl, blob: dataURLtoBlob(dataUrl) };
 }
 
-function download(blob){
-  const url = URL.createObjectURL(blob);
+function download(dataUrl){
   const a = document.createElement('a');
-  a.href = url;
+  a.href = dataUrl;
   a.download = '카드_' + stamp() + '.png';
   document.body.appendChild(a);
   a.click();
   a.remove();
-  setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+}
+
+function isInAppBrowser(){
+  return /KAKAOTALK|NAVER|Instagram|FBAN|FBAV|Line|wv\b/i.test(navigator.userAgent || '');
 }
 
 let lastExport = null;
@@ -1162,8 +1164,8 @@ $('#saveModal').addEventListener('click', function(e){
 });
 $('#btnModalDownload').addEventListener('click', function(){
   if (!lastExport) return;
-  download(lastExport.blob);
-  toast('다운로드를 다시 시도했어요. 안 되면 위 이미지를 꾹 눌러 저장하세요!');
+  download(lastExport.dataUrl);
+  toast('파일 저장을 실행했어요. 안 되면 위 이미지를 꾹 눌러 저장하세요!');
 });
 
 function onSave(){
@@ -1171,9 +1173,13 @@ function onSave(){
   btn.disabled = true; btn.textContent = '저장 중…';
   try {
     const exp = makeExportSync();
-    download(exp.blob);
     openSaveModal(exp.dataUrl, exp.blob);
-    toast('파일 저장을 실행했어요. 안 보이면 뜬 이미지를 꾹 눌러 저장하세요!');
+    if (!isInAppBrowser()){
+      download(exp.dataUrl);
+      toast('사진 저장을 시작했어요. 안 되면 뜬 이미지를 꾹 눌러 저장하세요!');
+    } else {
+      toast('뜬 이미지를 손가락으로 꾹 눌러 ‘이미지 저장’ 해주세요!');
+    }
   } catch (err){
     console.warn(err);
     toast('저장하지 못했어요. 다시 한 번 눌러 주세요.');
@@ -1186,7 +1192,7 @@ function shareFallbackMsg(){
   if (location.protocol === 'file:'){
     return '파일로 열면 공유 기능이 막혀 사진 저장 창을 열었어요. 이미지를 꾹 눌러 저장해 주세요.';
   }
-  return '이 브라우저는 바로 공유를 지원하지 않아 저장 창을 열었어요. 저장 후 카톡으로 보내 주세요.';
+  return '이 브라우저는 바로 공유를 지원하지 않아 저장 창을 열었어요. 이미지를 꾹 눌러 저장해 주세요.';
 }
 async function onShare(){
   const btn = $('#btnShare'), old = btn.textContent;
@@ -1200,12 +1206,10 @@ async function onShare(){
         toast('공유 창에서 카카오톡을 골라 보내세요.');
       } catch (err){
         if (err && err.name === 'AbortError') return;
-        download(exp.blob);
         openSaveModal(exp.dataUrl, exp.blob);
         toast(shareFallbackMsg());
       }
     } else {
-      download(exp.blob);
       openSaveModal(exp.dataUrl, exp.blob);
       toast(shareFallbackMsg());
     }
